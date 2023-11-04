@@ -1,32 +1,90 @@
 {
   "name": "svelte-matey",
-  "displayName": "svelte-matey",
-  "description": "The must have extension for svelte coding",
-  "version": "0.0.1",
-  "engines": {
-    "vscode": "^1.84.0"
+  "version": "0.0.4",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Bewinxed/svelte-matey.git"
   },
+  "main": "./dist/extension.js",
+  "devDependencies": {
+    "@types/mocha": "^10.0.3",
+    "@types/node": "20.x",
+    "@types/vscode": "*",
+    "@typescript-eslint/eslint-plugin": "^6.9.1",
+    "@typescript-eslint/parser": "^6.9.1",
+    "@vscode/test-electron": "^2.3.6",
+    "eslint": "^8.52.0",
+    "glob": "^10.3.10",
+    "mocha": "^10.2.0",
+    "ts-loader": "^9.5.0",
+    "typescript": "^5.2.2",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4"
+  },
+  "activationEvents": [
+    "onLanguage:Svelte",
+    "onLanguage:Sveltekit"
+  ],
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
-  "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
         "command": "svelte-matey.helloWorld",
         "title": "Hello World"
+      },
+      {
+        "command": "nodeDependencies.refreshEntry",
+        "title": "Refresh",
+        "icon": {
+          "light": "resources/light/refresh.svg",
+          "dark": "resources/dark/refresh.svg"
+        }
+      },
+      {
+        "command": "svelte-matey.openAllSubItems",
+        "category": "Custom",
+        "title": "Open all files in the route",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "svelte-matey.createRouteFiles",
+        "category": "Custom",
+        "title": "Creates all files for a route",
+        "icon": "$(file-directory-create)"
       }
     ],
     "views": {
       "explorer": [
-          {
-              "id": "svelteRoutes",
-              "name": "Svelte Routes"
-          }
+        {
+          "id": "svelteRoutes",
+          "name": "Svelte Routes"
+        }
       ]
-  }
+    },
+    "menus": {
+      "view/item/context": [
+        {
+          "when": "viewItem == folder",
+          "command": "svelte-matey.openAllSubItems",
+          "group": "inline"
+        },
+        {
+          "when": "viewItem == folder",
+          "command": "svelte-matey.createRouteFiles",
+          "group": "inline"
+        }
+      ]
+    }
   },
+  "description": "Effortless Sveltekit Navigation & Tools!",
+  "displayName": "svelte-matey",
+  "engines": {
+    "vscode": "^1.84.0"
+  },
+  "icon": "resources/icons/dark/page.png",
+  "publisher": "bewinxed",
   "scripts": {
     "vscode:prepublish": "pnpm run package",
     "compile": "webpack",
@@ -37,20 +95,5 @@
     "pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
     "lint": "eslint src --ext ts",
     "test": "node ./out/test/runTest.js"
-  },
-  "devDependencies": {
-    "@types/vscode": "1.83^",
-    "@types/mocha": "^10.0.3",
-    "@types/node": "20.x",
-    "@typescript-eslint/eslint-plugin": "^6.9.1",
-    "@typescript-eslint/parser": "^6.9.1",
-    "eslint": "^8.52.0",
-    "glob": "^10.3.10",
-    "mocha": "^10.2.0",
-    "typescript": "^5.2.2",
-    "ts-loader": "^9.5.0",
-    "webpack": "^5.89.0",
-    "webpack-cli": "^5.1.4",
-    "@vscode/test-electron": "^2.3.6"
   }
 }

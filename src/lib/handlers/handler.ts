@@ -16,7 +16,7 @@ export class DirectoryHandler implements NodeHandler {
   }
   // DirectoryHandler
   async handle(dir: string): Promise<Node[]> {
-    console.log("handle called with dir:", dir);
+    // console.log("handle called with dir:", dir);
     const results: Node[] = [];
 
     if (fs.statSync(dir).isDirectory()) {
@@ -35,6 +35,7 @@ export class DirectoryHandler implements NodeHandler {
               label: path.basename(fullPath),
               collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
               filePath: fullPath,
+              contextValue: "folder",
               iconPath: {
                 dark: vscode.Uri.file(iconFilePathDark),
                 light: vscode.Uri.file(iconFilePathLight),
@@ -51,7 +52,7 @@ export class DirectoryHandler implements NodeHandler {
         }
       }
     }
-    console.log("handle returning results:", results);
+    // console.log("handle returning results:", results);
     return results;
   }
 }
@@ -76,10 +77,10 @@ export class FileHandler implements NodeHandler {
     const fileName = path.basename(fullPath).replace(/\.[^/.]+$/, "");
     const folderName = path.basename(path.dirname(fullPath));
     let label = "";
-    if (folderName === "routes") {
+    if (folderName === "src") {
       label = `${fileName}`;
     } else {
-      label = `↳ ${fileName}`;
+      label = `${fileName}`;
     }
 
     let iconPath: { dark: vscode.Uri; light: vscode.Uri } | vscode.ThemeIcon;
@@ -91,8 +92,8 @@ export class FileHandler implements NodeHandler {
         path.join("resources", "icons", "light", this.props.iconFileName)
       );
 
-      //   console.warn("Dark icon path:", iconFilePathDark);
-      //   console.warn("Light icon path:", iconFilePathLight);
+      //   // console.warn("Dark icon path:", iconFilePathDark);
+      //   // console.warn("Light icon path:", iconFilePathLight);
 
       iconPath = {
         dark: vscode.Uri.file(iconFilePathDark),
@@ -105,7 +106,7 @@ export class FileHandler implements NodeHandler {
     return [
       new Node({
         label: label,
-        collapsibleState: vscode.TreeItemCollapsibleState.None,
+        collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
         filePath: fullPath,
         description: `${this.props.description ?? ""} (${folderName})`,
         iconPath,
@@ -115,8 +116,71 @@ export class FileHandler implements NodeHandler {
 }
 
 export class SveltePageHandler extends FileHandler {
+  private page_context: vscode.ExtensionContext;
   constructor(context: vscode.ExtensionContext) {
     super(context, { iconFileName: "page.png" });
+    this.page_context = context;
+  }
+
+  async handle(fullPath: string): Promise<Node[]> {
+    const nodes = await super.handle(fullPath);
+    await this.addPageSections(nodes[0], fullPath);
+    return nodes;
+  }
+
+  private async addPageSections(node: Node, fullPath: string): Promise<void> {
+    const document = await vscode.workspace.openTextDocument(fullPath);
+    const symbols = await vscode.commands.executeCommand<
+      vscode.DocumentSymbol[]
+    >("vscode.executeDocumentSymbolProvider", document.uri);
+
+    if (!symbols) {
+      console.error("No symbols found for", fullPath);
+      return;
+    }
+
+    for (const symbol of symbols) {
+      if (symbol.kind === vscode.SymbolKind.Namespace) {
+        // Ignore namespaces, as they do not correspond to HTML sections
+        continue;
+      }
+
+      const label = symbol.name;
+      const lineNumber = symbol.range.start.line + 1; // 1-indexed line number
+
+      let file_name = `${symbol.name.toLowerCase().replace(":", "-")}.png`;
+
+      if (file_name.includes(".")) {
+        file_name = file_name.split(".")[0] + ".png";
+      }
+
+      // if file name is heading, use heading icon, look for h[number]  replace it with just "h"
+      if (file_name.startsWith("h") && file_name.length === 2) {
+        file_name = "h.png";
+      }
+
+      const iconFilePathDark = this.page_context.asAbsolutePath(
+        path.join("resources", "icons", "dark", file_name)
+      );
+      const iconFilePathLight = this.page_context.asAbsolutePath(
+        path.join("resources", "icons", "light", file_name)
+      );
+
+      const sectionNode = new Node({
+        label,
+        collapsibleState: vscode.TreeItemCollapsibleState.None,
+        filePath: fullPath,
+        iconPath: {
+          dark: vscode.Uri.file(iconFilePathDark),
+          light: vscode.Uri.file(iconFilePathLight),
+        },
+        lineNumber,
+        description: label,
+        // Add any icon or other properties you want for this node
+      });
+
+      node.children.push(sectionNode);
+    }
   }
 }
 
@@ -142,8 +206,10 @@ export class EndpointHandler extends FileHandler {
 }
 
 export class ServerHandler extends FileHandler {
+  private endpoint_context: vscode.ExtensionContext;
   constructor(context: vscode.ExtensionContext) {
     super(context, { description: "Endpoint", iconFileName: "endpoint.png" });
+    this.endpoint_context = context;
   }
 
   async handle(fullPath: string): Promise<Node[]> {
@@ -161,10 +227,10 @@ export class ServerHandler extends FileHandler {
       vscode.SymbolInformation[]
     >("vscode.executeDocumentSymbolProvider", document.uri);
 
-    console.log("Symbols:", symbols); // Add this line
+    // console.log("Symbols:", symbols); // Add this line
 
     if (!symbols) {
-      console.error("No symbols found for", fullPath);
+      // console.error("No symbols found for", fullPath);
       return;
     }
 
@@ -177,7 +243,7 @@ export class ServerHandler extends FileHandler {
       "HEAD",
       "OPTIONS",
     ];
-    console.log(symbols[0].name, "symbols found for", fullPath);
+    // console.log(symbols[0].name, "symbols found for", fullPath);
     for (const symbol of symbols) {
       if (
         httpMethods.includes(symbol.name) &&
@@ -186,15 +252,35 @@ export class ServerHandler extends FileHandler {
           symbol.kind === vscode.SymbolKind.Variable ||
           symbol.kind === vscode.SymbolKind.Method)
       ) {
+        console.log("Found endpoint:", symbol);
+        const iconFilePathDark = this.endpoint_context.asAbsolutePath(
+          path.join(
+            "resources",
+            "icons",
+            "light",
+            `${symbol.name.toLowerCase()}.png`
+          )
+        );
+        const iconFilePathLight = this.endpoint_context.asAbsolutePath(
+          path.join(
+            "resources",
+            "icons",
+            "light",
+            `${symbol.name.toLowerCase()}.png`
+          )
+        );
         const endpointNode = new Node({
-            label: `↳ ${symbol.name}`,
-            collapsibleState: vscode.TreeItemCollapsibleState.None,
-            filePath: fullPath,
-            lineNumber: symbol.location.range.start.line + 1, // Store the line number separately
-            description: "Endpoint",
-            iconPath: new vscode.ThemeIcon("zap"),
-          });
-          
+          label: `${symbol.name}`,
+          collapsibleState: vscode.TreeItemCollapsibleState.Expanded,
+          filePath: fullPath,
+          lineNumber: symbol.location.range.start.line + 1, // Store the line number separately
+          description: "Endpoint",
+          iconPath: {
+            dark: vscode.Uri.file(iconFilePathDark),
+            light: vscode.Uri.file(iconFilePathLight),
+          },
+        });
+        console.log("Endpoint node:", endpointNode);
         node.children.push(endpointNode);
         console.log("Added endpoint to server node:", node);
       }
